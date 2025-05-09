@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Presença - 40 Alunos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 15px;
+            background-color: #f8f9fa;
+        }
+        .student-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .form-check-input:checked {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .header {
+            background-color: #343a40;
+            color: white;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            margin-left: 10px;
+        }
+        #searchInput {
+            margin-bottom: 15px;
+        }
+        .student-info {
+            margin-right: 15px;
+            flex-grow: 1;
+        }
+        .student-header {
+            display: flex;
+            align-items: center;
+        }
+        .switch-container {
+            display: flex;
+            align-items: center;
+        }
+        .form-switch {
+            padding-left: 0;
+            margin-left: 10px;
+        }
+        .form-check-label {
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+        .absence-text {
+            color: #dc3545;
+            font-weight: bold;
+            text-shadow: 0 0 2px rgba(220, 53, 69, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="header text-center">
+        <h4>Controle de Presença</h4>
+        <small class="text-light">40 alunos cadastrados - SMS automático</small>
+    </div>
+    
+    <div class="container">
+        <input type="text" id="searchInput" class="form-control" placeholder="Buscar aluno...">
+        
+        <div class="alert alert-info mb-3">
+            <i class="bi bi-info-circle"></i> Marque o aluno como faltante para enviar SMS automaticamente ao responsável.
+        </div>
+        
+        <div id="studentList">
+            <!-- Lista de alunos será gerada aqui -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Dados dos 40 alunos fictícios
+        const students = [
+            { id: 1, name: "Ana Clara Santos", phone: "21975477253", responsible: "Mãe: (21) 97547-7253", smsSent: false },
+            { id: 2, name: "Bruno Oliveira", phone: "21982006325", responsible: "Pai: (21) 98200-6325", smsSent: false },
+            // ... (outros 38 alunos)
+            { id: 40, name: "Ricardo Falcão", phone: "21988008877", responsible: "Pai: (21) 98800-8877", smsSent: false }
+        ];
+
+        // Função para enviar SMS
+        function sendSms(student) {
+            const message = `Atenção! O(A) aluno(a) ${student.name} faltou hoje.`;
+            
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = `sms:${student.phone}?body=${encodeURIComponent(message)}`;
+            document.body.appendChild(iframe);
+            
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 1000);
+            
+            student.smsSent = true;
+            updateStudentStatus(student.id);
+            
+            console.log(`SMS enviado para ${student.phone}: ${message}`);
+        }
+
+        // Função para atualizar o status visual
+        function updateStudentStatus(studentId) {
+            const student = students.find(s => s.id === studentId);
+            const studentElement = document.querySelector(`#student-${studentId}`);
+            
+            if (studentElement) {
+                const badgeContainer = studentElement.querySelector('.status-container');
+                badgeContainer.innerHTML = student.smsSent 
+                    ? '<span class="badge bg-success status-badge">SMS Enviado</span>'
+                    : '';
+                
+                const checkbox = studentElement.querySelector(`#absent-${studentId}`);
+                if (checkbox) {
+                    checkbox.checked = student.smsSent;
+                    checkbox.disabled = student.smsSent;
+                    const label = checkbox.nextElementSibling;
+                    if (label) {
+                        if (student.smsSent) {
+                            label.innerHTML = '<span class="absence-text">Falta registrada</span>';
+                        } else {
+                            label.textContent = 'Marcar falta';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Função para renderizar a lista de alunos
+        function renderStudentList(filter = '') {
+            const studentListElement = document.getElementById('studentList');
+            studentListElement.innerHTML = '';
+
+            const filteredStudents = students.filter(student => 
+                student.name.toLowerCase().includes(filter.toLowerCase()) ||
+                student.responsible.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            if (filteredStudents.length === 0) {
+                studentListElement.innerHTML = '<div class="alert alert-warning">Nenhum aluno encontrado.</div>';
+                return;
+            }
+
+            filteredStudents.forEach(student => {
+                const studentElement = document.createElement('div');
+                studentElement.className = 'student-item';
+                studentElement.id = `student-${student.id}`;
+                studentElement.innerHTML = `
+                    <div class="student-header">
+                        <div class="student-info">
+                            <h5 class="mb-1">${student.name}</h5>
+                            <small class="text-muted">${student.responsible}</small>
+                        </div>
+                        <div class="switch-container">
+                            <div class="status-container">
+                                ${student.smsSent ? '<span class="badge bg-success status-badge">SMS Enviado</span>' : ''}
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input absent-checkbox" type="checkbox" 
+                                       id="absent-${student.id}" data-id="${student.id}"
+                                       ${student.smsSent ? 'checked disabled' : ''}>
+                                <label class="form-check-label" for="absent-${student.id}">
+                                    ${student.smsSent ? '<span class="absence-text">Falta registrada</span>' : 'Marcar falta'}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                studentListElement.appendChild(studentElement);
+            });
+
+            // Adiciona eventos aos checkboxes
+            document.querySelectorAll('.absent-checkbox:not(:disabled)').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const studentId = parseInt(this.dataset.id);
+                    const student = students.find(s => s.id === studentId);
+                    
+                    if (this.checked && !student.smsSent) {
+                        if (confirm(`Enviar SMS para o responsável de ${student.name} (${student.phone})?`)) {
+                            sendSms(student);
+                        } else {
+                            this.checked = false;
+                        }
+                    }
+                });
+            });
+        }
+
+        // Função de busca
+        document.getElementById('searchInput').addEventListener('input', function() {
+            renderStudentList(this.value);
+        });
+
+        // Inicializa a lista de alunos
+        renderStudentList();
+    </script>
+</body>
+</html>
